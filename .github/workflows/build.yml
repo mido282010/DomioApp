@@ -17,7 +17,6 @@ jobs:
           mkdir -p website
           unzip -o DominoApp.zip -d website/
           cd website
-          # نقل الملفات من المجلدات الفرعية إذا وجدت
           if [ -d "www" ]; then
             cp -r www/* ./
           fi
@@ -41,12 +40,25 @@ jobs:
           cd domino
           cp -r ../website/* www/
           cordova platform add android
-          cordova build android --release
-          # البحث عن APK
+          # الحل السحري: الأمر التالي يجبر Cordova على إنتاج APK وليس AAB
+          cordova build android --release -- --packageType=apk
+          
+          # البحث عن APK في جميع المواقع المحتملة
           find . -name "*.apk" -exec cp {} ../ \;
+
+      - name: Find and Upload APK
+        id: find-apk
+        run: |
+          apk_file=$(find . -name "*.apk" | head -1)
+          if [ -z "$apk_file" ]; then
+            echo "::error::No APK file found"
+            exit 1
+          fi
+          echo "APK_PATH=$apk_file" >> $GITHUB_OUTPUT
+          echo "Found APK at: $apk_file"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DominoApp
-          path: ./*.apk
+          path: ${{ steps.find-apk.outputs.APK_PATH }}
