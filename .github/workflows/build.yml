@@ -14,40 +14,46 @@ jobs:
 
     - name: Unzip files
       run: |
-        mkdir -p html_files
-        unzip -o DominoApp.zip -d html_files/
-        ls -la html_files/
+        mkdir -p website
+        unzip -o DominoApp.zip -d website/
+        cd website
+        # إعادة تسمية index.html إذا كان موجوداً في مجلد فرعي
+        if [ -f "www/index.html" ]; then
+          cp www/index.html ./
+        fi
+        ls -la
 
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '11'
-
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-
-    - name: Create APK using Pwabuilder
+    - name: Create APK using Bubblewrap
       run: |
-        # تثبيت الأدوات
-        sudo apt-get update
-        sudo apt-get install -y wget unzip
+        # تثبيت Bubblewrap
+        npm install -g @bubblewrap/cli
         
-        # تحميل Pwabuilder CLI
-        npm install -g @pwabuilder/cli
+        # إنشاء Web Manifest
+        cd website
+        cat > manifest.json << 'EOF'
+        {
+          "name": "دومينو",
+          "short_name": "دومينو",
+          "start_url": "index.html",
+          "display": "standalone",
+          "theme_color": "#1b5e3a",
+          "background_color": "#0a3d2a",
+          "icons": [
+            {
+              "src": "ic_launcher.png",
+              "sizes": "256x256",
+              "type": "image/png"
+            }
+          ]
+        }
+        EOF
         
-        # إنشاء PWA من مجلد HTML
-        mkdir pwa
-        cp -r html_files/* pwa/
-        
-        cd pwa
-        pwabuilder package
-        
-        # البحث عن APK
-        find . -name "*.apk"
+        # بناء APK
+        npx bubblewrap init --manifest manifest.json
+        npx bubblewrap build
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: DominoApp
-        path: pwa/**/*.apk
+        path: website/app-release-unsigned.apk
