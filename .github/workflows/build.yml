@@ -1,0 +1,59 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Unzip DominoApp
+        run: |
+          mkdir -p app
+          unzip -o DominoApp.zip -d app/
+          ls -la app/
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      - name: Create Cordova Project
+        run: |
+          cordova create domino com.domino.app "دومينو"
+          cd domino
+          
+          # تحديد مكان ملفات HTML
+          if [ -d "../app/www" ]; then
+            cp -r ../app/www/* www/
+          elif [ -d "../app/www/www" ]; then
+            cp -r ../app/www/www/* www/
+          elif [ -d "../app" ]; then
+            cp -r ../app/* www/
+          fi
+          
+          # نسخ الصور
+          if [ -d "../app/img" ]; then
+            cp -r ../app/img www/
+          fi
+          
+          cordova platform add android
+          cordova build android --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DominoApp
+          path: domino/platforms/android/app/build/outputs/apk/release/*.apk
