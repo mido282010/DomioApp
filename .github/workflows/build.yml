@@ -14,52 +14,40 @@ jobs:
 
     - name: Unzip files
       run: |
-        mkdir -p app/www
-        unzip -o DominoApp.zip -d app/www/
-        ls -la app/www/
+        mkdir -p html_files
+        unzip -o DominoApp.zip -d html_files/
+        ls -la html_files/
 
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: '11'
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install Cordova
+    - name: Create APK using Pwabuilder
       run: |
-        npm install -g cordova
-        npm install -g cordova-android@latest
-
-    - name: Create Cordova Project
-      run: |
-        cordova create domino com.domino.app "دومينو"
-        cd domino
+        # تثبيت الأدوات
+        sudo apt-get update
+        sudo apt-get install -y wget unzip
         
-        # نسخ الملفات
-        if [ -d "../app/www/www" ]; then
-          cp -r ../app/www/www/* www/
-        else
-          cp -r ../app/www/* www/
-        fi
+        # تحميل Pwabuilder CLI
+        npm install -g @pwabuilder/cli
         
-        # نسخ مجلد الصور
-        if [ -d "../app/www/img" ]; then
-          cp -r ../app/www/img www/
-        fi
+        # إنشاء PWA من مجلد HTML
+        mkdir pwa
+        cp -r html_files/* pwa/
         
-        # إضافة Android platform
-        cordova platform add android@latest
-        cordova plugin add cordova-plugin-whitelist
-
-    - name: Build APK
-      run: |
-        cd domino
-        cordova build android --release
+        cd pwa
+        pwabuilder package
+        
+        # البحث عن APK
+        find . -name "*.apk"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: DominoApp
-        path: domino/platforms/android/app/build/outputs/apk/**/*.apk
+        path: pwa/**/*.apk
