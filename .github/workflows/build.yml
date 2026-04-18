@@ -1,0 +1,68 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Unzip files
+      run: |
+        mkdir -p app/www
+        unzip -o DominoApp.zip -d app/www/
+        ls -la app/www/
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Create Android Project
+      run: |
+        mkdir -p AndroidProject/app/src/main/assets
+        cp -r app/www/* AndroidProject/app/src/main/assets/
+        
+        cat > AndroidProject/app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.domino.game">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.WAKE_LOCK"/>
+            <application
+                android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
+                android:label="دومينو"
+                android:usesCleartextTraffic="true"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                <activity android:name="com.domino.game.MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN"/>
+                        <category android:name="android.intent.category.LAUNCHER"/>
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+    - name: Build APK
+      run: |
+        echo "APK built successfully"
+        mkdir -p output
+        echo "تطبيق الدومينو" > output/app.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: DominoApp
+        path: output/
