@@ -16,9 +16,7 @@ jobs:
       run: |
         mkdir -p app/www
         unzip -o DominoApp.zip -d app/www/
-        echo "=== محتويات الملفات بعد الفك ==="
         ls -la app/www/
-        ls -la app/www/www/ 2>/dev/null || echo "لا يوجد مجلد www داخلي"
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -32,28 +30,27 @@ jobs:
     - name: Install Cordova
       run: |
         npm install -g cordova
+        npm install -g cordova-android@latest
 
     - name: Create Cordova Project
       run: |
         cordova create domino com.domino.app "دومينو"
         cd domino
         
-        # نسخ ملفات HTML و CSS و JS
+        # نسخ الملفات
         if [ -d "../app/www/www" ]; then
           cp -r ../app/www/www/* www/
         else
           cp -r ../app/www/* www/
         fi
         
-        # نسخ مجلد الصور إذا وجد
+        # نسخ مجلد الصور
         if [ -d "../app/www/img" ]; then
           cp -r ../app/www/img www/
         fi
         
-        # إضافة منصات Android
-        cordova platform add android
-        
-        # إضافة صلاحيات الإنترنت
+        # إضافة Android platform
+        cordova platform add android@latest
         cordova plugin add cordova-plugin-whitelist
 
     - name: Build APK
@@ -61,22 +58,8 @@ jobs:
         cd domino
         cordova build android --release
 
-    - name: Find and Upload APK
-      run: |
-        echo "=== البحث عن ملف APK ==="
-        find domino -name "*.apk"
-        
-        # نسخ APK إلى مجلد الإخراج
-        mkdir -p output
-        cp domino/platforms/android/app/build/outputs/apk/release/*.apk output/ 2>/dev/null || \
-        cp domino/platforms/android/app/build/outputs/apk/debug/*.apk output/ 2>/dev/null || \
-        find domino -name "*.apk" -exec cp {} output/ \;
-        
-        echo "=== الملفات في مجلد الإخراج ==="
-        ls -la output/
-
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: DominoApp
-        path: output/*.apk
+        path: domino/platforms/android/app/build/outputs/apk/**/*.apk
