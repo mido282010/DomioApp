@@ -18,6 +18,16 @@ jobs:
         unzip -o DominoApp.zip -d app/www/
         ls -la app/www/
 
+    - name: Create Android Project
+      run: |
+        mkdir -p android_project/app/src/main/assets/www
+        cp -r app/www/www/* android_project/app/src/main/assets/www/ 2>/dev/null || cp -r app/www/* android_project/app/src/main/assets/www/
+        
+        # إضافة مجلد الصور
+        if [ -d "app/www/img" ]; then
+          cp -r app/www/img android_project/app/src/main/assets/
+        fi
+
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
@@ -27,42 +37,17 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Create Android Project
+    - name: Build APK with cordova
       run: |
-        mkdir -p AndroidProject/app/src/main/assets
-        cp -r app/www/* AndroidProject/app/src/main/assets/
-        
-        cat > AndroidProject/app/src/main/AndroidManifest.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-            package="com.domino.game">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <uses-permission android:name="android.permission.WAKE_LOCK"/>
-            <application
-                android:allowBackup="true"
-                android:icon="@mipmap/ic_launcher"
-                android:label="دومينو"
-                android:usesCleartextTraffic="true"
-                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                <activity android:name="com.domino.game.MainActivity"
-                    android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN"/>
-                        <category android:name="android.intent.category.LAUNCHER"/>
-                    </intent-filter>
-                </activity>
-            </application>
-        </manifest>
-        EOF
-
-    - name: Build APK
-      run: |
-        echo "APK built successfully"
-        mkdir -p output
-        echo "تطبيق الدومينو" > output/app.apk
+        npm install -g cordova
+        cordova create domino com.domino.app "دومينو"
+        cd domino
+        cp -r ../android_project/app/src/main/assets/www www/
+        cordova platform add android
+        cordova build android --release
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: DominoApp
-        path: output/
+        path: domino/platforms/android/app/build/outputs/apk/release/*.apk
