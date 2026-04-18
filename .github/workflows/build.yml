@@ -16,17 +16,9 @@ jobs:
       run: |
         mkdir -p app/www
         unzip -o DominoApp.zip -d app/www/
+        echo "=== محتويات الملفات بعد الفك ==="
         ls -la app/www/
-
-    - name: Create Android Project
-      run: |
-        mkdir -p android_project/app/src/main/assets/www
-        cp -r app/www/www/* android_project/app/src/main/assets/www/ 2>/dev/null || cp -r app/www/* android_project/app/src/main/assets/www/
-        
-        # إضافة مجلد الصور
-        if [ -d "app/www/img" ]; then
-          cp -r app/www/img android_project/app/src/main/assets/
-        fi
+        ls -la app/www/www/ 2>/dev/null || echo "لا يوجد مجلد www داخلي"
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -37,17 +29,54 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Build APK with cordova
+    - name: Install Cordova
       run: |
         npm install -g cordova
+
+    - name: Create Cordova Project
+      run: |
         cordova create domino com.domino.app "دومينو"
         cd domino
-        cp -r ../android_project/app/src/main/assets/www www/
+        
+        # نسخ ملفات HTML و CSS و JS
+        if [ -d "../app/www/www" ]; then
+          cp -r ../app/www/www/* www/
+        else
+          cp -r ../app/www/* www/
+        fi
+        
+        # نسخ مجلد الصور إذا وجد
+        if [ -d "../app/www/img" ]; then
+          cp -r ../app/www/img www/
+        fi
+        
+        # إضافة منصات Android
         cordova platform add android
+        
+        # إضافة صلاحيات الإنترنت
+        cordova plugin add cordova-plugin-whitelist
+
+    - name: Build APK
+      run: |
+        cd domino
         cordova build android --release
+
+    - name: Find and Upload APK
+      run: |
+        echo "=== البحث عن ملف APK ==="
+        find domino -name "*.apk"
+        
+        # نسخ APK إلى مجلد الإخراج
+        mkdir -p output
+        cp domino/platforms/android/app/build/outputs/apk/release/*.apk output/ 2>/dev/null || \
+        cp domino/platforms/android/app/build/outputs/apk/debug/*.apk output/ 2>/dev/null || \
+        find domino -name "*.apk" -exec cp {} output/ \;
+        
+        echo "=== الملفات في مجلد الإخراج ==="
+        ls -la output/
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: DominoApp
-        path: domino/platforms/android/app/build/outputs/apk/release/*.apk
+        path: output/*.apk
