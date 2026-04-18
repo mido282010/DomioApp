@@ -56,4 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DominoApp
-          path: domino/platforms/android/app/build/outputs/apk/release/*.apk
+          path: domino/platforms/android/app/build/outputs/apk/**/*.apk
