@@ -15,7 +15,10 @@ jobs:
       - name: Extract files
         run: |
           unzip -o DominoApp.zip -d extracted/
-          ls -la extracted/DominoApp/
+          mkdir -p website
+          cp -r extracted/DominoApp/www/* website/
+          cp -r extracted/DominoApp/img website/ 2>/dev/null || true
+          ls -la website/
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -27,22 +30,36 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Cordova
-        run: npm install -g cordova
+        run: |
+          npm install -g cordova
+          cordova telemetry off
 
-      - name: Build APK
+      - name: Build Cordova APK
         run: |
           cordova create domino com.domino.app "دومينو"
           cd domino
-          cp -r ../extracted/DominoApp/www/* www/
-          cp -r ../extracted/DominoApp/img www/ 2>/dev/null || true
-          cordova platform add android
+          rm -rf www/*
+          cp -r ../website/* www/
+          cordova platform add android@12.0.1
           cordova build android --release -- --packageType=apk
-          cp platforms/android/app/build/outputs/apk/release/*.apk ../app-unsigned.apk
 
-      - name: Sign APK
+      - name: Find and Sign APK
         run: |
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore extracted/DominoApp/debug.keystore -storepass Domino2024 -keypass Domino2024 app-unsigned.apk androiddebugkey
-          mv app-unsigned.apk DominoApp-signed.apk
+          # البحث عن APK
+          find . -name "*.apk" -exec cp {} ./app-to-sign.apk \;
+          ls -la
+          
+          # إنشاء keystore جديد للتوقيع
+          keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key-alias -dname "CN=Domino, OU=Dev, O=DominoApp, L=Cairo, ST=Cairo, C=EG" -storepass domino2024 -keypass domino2024
+          
+          # توقيع APK
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore my-release-key.jks -storepass domino2024 -keypass domino2024 app-to-sign.apk my-key-alias
+          
+          # التحقق من التوقيع
+          jarsigner -verify app-to-sign.apk
+          
+          # إعادة تسمية الملف
+          mv app-to-sign.apk DominoApp-signed.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
