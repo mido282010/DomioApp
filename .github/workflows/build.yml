@@ -17,12 +17,10 @@ jobs:
           unzip -o DominoApp.zip -d extracted/
           mkdir -p website
           cp -r extracted/DominoApp/www/* website/
-          if [ -d "extracted/DominoApp/img" ]; then
-            cp -r extracted/DominoApp/img website/
-          fi
+          cp -r extracted/DominoApp/img website/ 2>/dev/null || true
           ls -la website/
 
-      - name: Setup Java
+      - name: Setup Java 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -31,37 +29,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          cmdline-tools-version: 'latest'
+          cmdline-tools-version: '9.0'
 
       - name: Install Cordova
         run: npm install -g cordova@10.0.0
 
-      - name: Create and Build Cordova Project
+      - name: Build APK
         run: |
           cordova create domino com.domino.app "دومينو"
           cd domino
           rm -rf www/*
           cp -r ../website/* www/
-          
-          # تثبيت إصدار محدد من Android platform
-          cordova platform add android@11.0.0
-          
-          # إضافة ملف build.json للتوقيع
-          cat > build.json << 'EOF'
-          {
-            "android": {
-              "release": {
-                "keystore": "mykeystore.jks",
-                "storePassword": "Domino2024",
-                "alias": "myalias",
-                "password": "Domino2024",
-                "keystoreType": "jks"
-              }
-            }
-          }
-          EOF
-          
-          cordova build android --release -- --packageType=apk
+          cordova platform add android@10.1.2
+          cordova build android --release
 
       - name: Sign APK
         run: |
@@ -72,51 +52,8 @@ jobs:
           # توقيع APK
           jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore mykeystore.jks -storepass Domino2024 -keypass Domino2024 platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk myalias
           
-          # نسخ APK الموقع
+          # نسخ الملف
           cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../DominoApp-signed.apk
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: DominoApp
-          path: DominoApp-signed.apk
-      - name: Create Cordova Project
-        run: |
-          cordova create domino com.domino.app "دومينو"
-          cd domino
-          rm -rf www/*
-          cp -r ../extracted/DominoApp/www/* www/
-          if [ -d "../extracted/DominoApp/img" ]; then
-            cp -r ../extracted/DominoApp/img www/
-          fi
-          echo "=== محتويات www بعد النسخ ==="
-          ls -la www/
-          cordova platform add android
-
-      - name: Build APK
-        run: |
-          cd domino
-          cordova build android --release
-          echo "=== البحث عن APK ==="
-          find . -name "*.apk"
-          cp platforms/android/app/build/outputs/apk/release/*.apk ../app-unsigned.apk 2>/dev/null || cp platforms/android/app/build/outputs/apk/debug/*.apk ../app-unsigned.apk
-
-      - name: Sign APK
-        run: |
-          # إنشاء keystore جديد بكلمة المرور Domino2024
-          keytool -genkey -v -keystore mykeystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias myalias -dname "CN=Domino, OU=Dev, O=DominoApp, L=Cairo, ST=Cairo, C=EG" -storepass Domino2024 -keypass Domino2024
-          
-          # توقيع APK
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore mykeystore.jks -storepass Domino2024 -keypass Domino2024 app-unsigned.apk myalias
-          
-          # التحقق من التوقيع
-          jarsigner -verify app-unsigned.apk
-          
-          # إعادة تسمية الملف النهائي
-          mv app-unsigned.apk DominoApp-signed.apk
-          
-          echo "=== تم إنشاء APK موقع ==="
-          ls -la DominoApp-signed.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
