@@ -12,15 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Unzip DominoApp
+      - name: Extract files
         run: |
-          mkdir -p website
-          unzip -o DominoApp.zip -d website/
-          cd website
-          if [ -d "www" ]; then
-            cp -r www/* ./
-          fi
-          ls -la
+          unzip -o DominoApp.zip -d extracted/
+          ls -la extracted/
+          ls -la extracted/www/
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -34,20 +30,21 @@ jobs:
       - name: Install Cordova
         run: npm install -g cordova
 
-      - name: Build Cordova APK
+      - name: Build APK
         run: |
           cordova create domino com.domino.app "دومينو"
           cd domino
-          cp -r ../website/* www/
+          cp -r ../extracted/www/* www/
+          cp -r ../extracted/img www/ 2>/dev/null || true
           cordova platform add android
           cordova build android --release -- --packageType=apk
+          cp platforms/android/app/build/outputs/apk/release/*.apk ../app-unsigned.apk
 
-      - name: Sign APK with debug keystore
+      - name: Sign APK
         run: |
-          # استخدام jarsigner لتوقيع APK
-          find . -name "*.apk" -exec cp {} ./app-to-sign.apk \;
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore website/debug.keystore -storepass android -keypass android app-to-sign.apk androiddebugkey
-          mv app-to-sign.apk DominoApp-signed.apk
+          # استخدام debug.keystore من المجلد المستخرج
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore extracted/debug.keystore -storepass android -keypass android app-unsigned.apk androiddebugkey
+          mv app-unsigned.apk DominoApp-signed.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
