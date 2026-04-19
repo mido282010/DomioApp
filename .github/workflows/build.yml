@@ -15,26 +15,71 @@ jobs:
       - name: Extract files
         run: |
           unzip -o DominoApp.zip -d extracted/
-          echo "=== محتويات extracted ==="
-          ls -la extracted/
-          echo "=== محتويات DominoApp ==="
-          ls -la extracted/DominoApp/
-          echo "=== محتويات www ==="
-          ls -la extracted/DominoApp/www/
+          mkdir -p website
+          cp -r extracted/DominoApp/www/* website/
+          if [ -d "extracted/DominoApp/img" ]; then
+            cp -r extracted/DominoApp/img website/
+          fi
+          ls -la website/
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
-
-      - name: Install Cordova
-        run: |
-          npm install -g cordova@11.1.0
+          java-version: '11'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 'latest'
 
+      - name: Install Cordova
+        run: npm install -g cordova@10.0.0
+
+      - name: Create and Build Cordova Project
+        run: |
+          cordova create domino com.domino.app "دومينو"
+          cd domino
+          rm -rf www/*
+          cp -r ../website/* www/
+          
+          # تثبيت إصدار محدد من Android platform
+          cordova platform add android@11.0.0
+          
+          # إضافة ملف build.json للتوقيع
+          cat > build.json << 'EOF'
+          {
+            "android": {
+              "release": {
+                "keystore": "mykeystore.jks",
+                "storePassword": "Domino2024",
+                "alias": "myalias",
+                "password": "Domino2024",
+                "keystoreType": "jks"
+              }
+            }
+          }
+          EOF
+          
+          cordova build android --release -- --packageType=apk
+
+      - name: Sign APK
+        run: |
+          cd domino
+          # إنشاء keystore
+          keytool -genkey -v -keystore mykeystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias myalias -dname "CN=Domino, OU=Dev, O=DominoApp, L=Cairo, ST=Cairo, C=EG" -storepass Domino2024 -keypass Domino2024
+          
+          # توقيع APK
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore mykeystore.jks -storepass Domino2024 -keypass Domino2024 platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk myalias
+          
+          # نسخ APK الموقع
+          cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../DominoApp-signed.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DominoApp
+          path: DominoApp-signed.apk
       - name: Create Cordova Project
         run: |
           cordova create domino com.domino.app "دومينو"
