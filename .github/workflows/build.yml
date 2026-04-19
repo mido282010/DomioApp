@@ -18,56 +18,47 @@ jobs:
           mkdir -p website
           cp -r extracted/DominoApp/www/* website/
           cp -r extracted/DominoApp/img website/ 2>/dev/null || true
-          ls -la website/
+          
+          # إنشاء ملف index.html رئيسي
+          cat > website/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body>
+          <script>
+            window.location.href = "www/index.html";
+          </script>
+          </body>
+          </html>
+          EOF
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '8'
 
-      - name: Install Android SDK manually
+      - name: Download APK Builder
         run: |
-          # تحميل SDK Tools الإصدار 9.0
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools-linux-9477386_latest.zip -d android-sdk
-          export ANDROID_HOME=$PWD/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/bin:$PATH
+          wget https://github.com/ashiqursuper/WebViewAPKBuilder/releases/download/v1.0/WebViewAPKBuilder.jar
           
-          # قبول التراخيص
-          yes | sdkmanager --licenses
-          
-          # تثبيت المنصات المطلوبة
-          sdkmanager "platforms;android-30" "build-tools;30.0.3"
-
-      - name: Install Cordova
-        run: npm install -g cordova@10.0.0
+          # إنشاء ملف التكوين
+          cat > config.properties << 'EOF'
+          app.name=دومينو
+          app.package=com.domino.app
+          website.folder=website
+          icon.path=extracted/DominoApp/ic_launcher.png
+          keystore.path=extracted/DominoApp/debug.keystore
+          keystore.password=Domino2024
+          keystore.alias=androiddebugkey
+          EOF
 
       - name: Build APK
         run: |
-          export ANDROID_HOME=$PWD/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/bin:$PATH
-          
-          cordova create domino com.domino.app "دومينو"
-          cd domino
-          rm -rf www/*
-          cp -r ../website/* www/
-          cordova platform add android@10.1.2
-          cordova build android --release
-
-      - name: Sign APK
-        run: |
-          cd domino
-          # إنشاء keystore
-          keytool -genkey -v -keystore mykeystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias myalias -dname "CN=Domino, OU=Dev, O=DominoApp, L=Cairo, ST=Cairo, C=EG" -storepass Domino2024 -keypass Domino2024
-          
-          # توقيع APK
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore mykeystore.jks -storepass Domino2024 -keypass Domino2024 platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk myalias
-          
-          cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../DominoApp-signed.apk
+          java -jar WebViewAPKBuilder.jar config.properties
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DominoApp
-          path: DominoApp-signed.apk
+          path: output/*.apk
