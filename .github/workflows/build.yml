@@ -16,7 +16,8 @@ jobs:
         run: |
           unzip -o DominoApp.zip -d extracted/
           ls -la extracted/
-          ls -la extracted/www/
+          ls -la extracted/DominoApp/
+          ls -la extracted/DominoApp/www/
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -34,16 +35,15 @@ jobs:
         run: |
           cordova create domino com.domino.app "دومينو"
           cd domino
-          cp -r ../extracted/www/* www/
-          cp -r ../extracted/img www/ 2>/dev/null || true
+          cp -r ../extracted/DominoApp/www/* www/
+          cp -r ../extracted/DominoApp/img www/ 2>/dev/null || true
           cordova platform add android
           cordova build android --release -- --packageType=apk
           cp platforms/android/app/build/outputs/apk/release/*.apk ../app-unsigned.apk
 
       - name: Sign APK
         run: |
-          # استخدام debug.keystore من المجلد المستخرج
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore extracted/debug.keystore -storepass android -keypass android app-unsigned.apk androiddebugkey
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore extracted/DominoApp/debug.keystore -storepass android -keypass android app-unsigned.apk androiddebugkey
           mv app-unsigned.apk DominoApp-signed.apk
 
       - name: Upload APK
