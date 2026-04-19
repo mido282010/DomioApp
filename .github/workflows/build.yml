@@ -15,9 +15,7 @@ jobs:
       - name: Extract files
         run: |
           unzip -o DominoApp.zip -d extracted/
-          ls -la extracted/
           ls -la extracted/DominoApp/
-          ls -la extracted/DominoApp/www/
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -43,7 +41,7 @@ jobs:
 
       - name: Sign APK
         run: |
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore extracted/DominoApp/debug.keystore -storepass android -keypass android app-unsigned.apk androiddebugkey
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore extracted/DominoApp/debug.keystore -storepass Domino2024 -keypass Domino2024 app-unsigned.apk androiddebugkey
           mv app-unsigned.apk DominoApp-signed.apk
 
       - name: Upload APK
